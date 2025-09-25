@@ -1,7 +1,7 @@
 import express from "express";
 import Product from "../models/Product.js";
 import SellerSettings from "../models/SellerSettings.js";
-import User from "../models/User.js"; // ✨ THIS LINE WAS ADDED TO FIX THE ERROR
+import User from "../models/User.js";
 import { protect, protectSeller, protectAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -44,6 +44,7 @@ router.get("/", async (req, res) => {
       .populate("seller", "name email")
       .lean();
 
+    // Re-use the seller visibility filter
     const visible = [];
     const memo = new Map();
     for (const p of base) {
@@ -60,6 +61,46 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+// ✨ NEW SEARCH ENDPOINT
+// Handles requests like GET /api/products/search?q=keyword
+router.get("/search", async (req, res) => {
+  try {
+    const keyword = req.query.q
+      ? {
+          $or: [
+            { name: { $regex: req.query.q, $options: "i" } },
+            { description: { $regex: req.query.q, $options: "i" } },
+            { brand: { $regex: req.query.q, $options: "i" } },
+            { category: { $regex: req.query.q, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const base = await Product.find({ ...keyword, status: "approved", isActive: { $ne: false } })
+      .select("-__v")
+      .populate("seller", "name email")
+      .lean();
+
+    // Re-use the seller visibility filter
+    const visible = [];
+    const memo = new Map();
+    for (const p of base) {
+      const sid = String(p.seller?._id || p.seller);
+      let vis = memo.get(sid);
+      if (vis === undefined) {
+        vis = await sellerAllowsVisibility(sid);
+        memo.set(sid, vis);
+      }
+      if (vis) visible.push(p);
+    }
+
+    res.json(visible);
+  } catch (err) {
+    console.error("Product search error:", err);
+    res.status(500).json({ error: "Failed to search for products" });
   }
 });
 

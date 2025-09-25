@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.local
+dist
+coverage
+.DS_Store
+.vscode
+
+# Ignore environment files
+.env
+*.env
+/Users/garvitjuneja27/spectra-commerce-ai && git ls-files -- server/.env | cat.env.example
+server/.env
+client/.env

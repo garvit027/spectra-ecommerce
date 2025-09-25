@@ -2,10 +2,11 @@
 import express from "express";
 import User from "../models/User.js";
 import sendEmail from "../utils/sendEmail.js"; // your nodemailer helper
+import { protectAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/:userId", async (req, res) => {
+router.post("/:userId", protectAdmin, async (req, res) => {
   try {
     const { status, reason } = req.body;
     const { userId } = req.params;

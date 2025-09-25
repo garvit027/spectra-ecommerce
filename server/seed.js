@@ -7,7 +7,7 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
-// Hardcoded seed product
+// Hardcoded seed product for consistency
 const seedProducts = [
   {
     name: "Premium Wireless Headphones",
@@ -36,7 +36,7 @@ const seedProducts = [
   },
 ];
 
-// 🤖 Function to get an image URL from Unsplash API
+// Function to get a random image URL from Unsplash API
 const getUnsplashImage = async (query) => {
   const url = `https://api.unsplash.com/photos/random?query=${query}&client_id=${process.env.UNSPLASH_ACCESS_KEY}`;
   try {
@@ -45,14 +45,14 @@ const getUnsplashImage = async (query) => {
       throw new Error(`Unsplash API error: ${response.statusText}`);
     }
     const data = await response.json();
-    return data.urls.regular; // Use 'regular' for a good size image
+    return data.urls.regular;
   } catch (error) {
     console.error(`❌ Error fetching image for query "${query}":`, error.message);
-    return null; // Return null if fetching fails
+    return null;
   }
 };
 
-// 🤖 Function to generate a single random electronic product
+// Function to generate a single random product
 const generateRandomProduct = async () => {
   const categories = ["Laptops", "Smartphones", "Cameras", "Headphones", "Gaming Consoles"];
   const name = `${faker.commerce.productAdjective()} ${faker.commerce.product()}`;
@@ -62,17 +62,16 @@ const generateRandomProduct = async () => {
   const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
 
   const electronicSpecs = {
-    "Processor": `${faker.word.adjective()} Core ${faker.number.int({ min: 3, max: 9 })}`,
-    "RAM": `${faker.number.int({ min: 4, max: 32 })}GB`,
-    "Storage": `${faker.number.int({ min: 128, max: 2048 })}GB SSD`,
-    "Display": `${faker.number.float({ min: 10, max: 20, precision: 0.1 })}" LED`,
+    Processor: `${faker.word.adjective()} Core ${faker.number.int({ min: 3, max: 9 })}`,
+    RAM: `${faker.number.int({ min: 4, max: 32 })}GB`,
+    Storage: `${faker.number.int({ min: 128, max: 2048 })}GB SSD`,
+    Display: `${faker.number.float({ min: 10, max: 20, precision: 0.1 })}" LED`,
     "Battery Life": `${faker.number.int({ min: 5, max: 20 })} hours`,
   };
 
-  // 📸 Await API calls to get image URLs
   const image1 = await getUnsplashImage("electronics");
   const image2 = await getUnsplashImage("tech gadget");
-  const images = [image1, image2].filter(url => url !== null);
+  const images = [image1, image2].filter(Boolean); // Filters out any nulls if API fails
 
   return {
     name,
@@ -94,13 +93,12 @@ const generateRandomProduct = async () => {
   };
 };
 
-// 🤖 The main seeding function is now async to handle image fetching
+// The main seeding function
 const seedDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI, {
       dbName: process.env.DB_NAME || "spectra",
     });
-
     console.log("✅ MongoDB connected for seeding");
 
     const seller = await User.findOne({ isSeller: true });
@@ -112,21 +110,19 @@ const seedDB = async () => {
     console.log("🗑️ Old products removed");
 
     console.log("⏳ Generating 49 random products...");
-    const randomProducts = [];
-    for (let i = 0; i < 49; i++) {
-      const product = await generateRandomProduct();
-      randomProducts.push(product);
-    }
+    const productPromises = Array.from({ length: 49 }, generateRandomProduct);
+    const randomProducts = await Promise.all(productPromises);
+    
     const allProducts = [...seedProducts, ...randomProducts];
 
-    const seeded = await Product.insertMany(
-      allProducts.map((p) => ({
-        ...p,
-        seller: seller?._id || undefined,
-        // ✨ Logic to set the first image as the banner image
-        bannerImages: p.images && p.images.length > 0 ? [p.images[0]] : [],
-      }))
-    );
+    const productsToInsert = allProducts.map((p) => ({
+      ...p,
+      seller: seller?._id || undefined,
+      // ✨ This is the perfect logic to set the first image as the banner image
+      bannerImages: p.images && p.images.length > 0 ? [p.images[0]] : [],
+    }));
+    
+    const seeded = await Product.insertMany(productsToInsert);
 
     console.log(`✅ Inserted ${seeded.length} products`);
     process.exit(0);

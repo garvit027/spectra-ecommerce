@@ -1,4 +1,3 @@
-// server/routes/user.js
 import express from "express";
 import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
@@ -249,84 +248,25 @@ router.post("/seller/apply", protect, async (req, res) => {
     const rejectDirect = `${API_BASE}/api/users/seller/reject-via-email/${app.reviewToken}`;
 
     const html = `
-  <div style="background:#0f172a;padding:0;margin:0">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:32px 0">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#0b1020;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 10px 30px rgba(0,0,0,.35)">
-            <tr>
-              <td style="padding:24px 28px;background:linear-gradient(90deg,#7c3aed,#06b6d4);color:#fff;font-family:Inter,Arial,sans-serif">
-                <div style="font-weight:700;font-size:20px;letter-spacing:.4px">SPECTRA · Seller Review</div>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:28px;color:#e2e8f0;font-family:Inter,Arial,sans-serif">
-                <h2 style="margin:0 0 8px 0;color:#f8fafc;font-size:22px">New Seller Application</h2>
-                <p style="margin:0 0 16px 0;color:#cbd5e1">A new seller has applied. Review details and take action below.</p>
-
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0 8px">
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Applicant Email</td>
-                    <td style="color:#f1f5f9">${user.email}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Business Name</td>
-                    <td style="color:#f1f5f9">${businessName}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Type</td>
-                    <td style="color:#f1f5f9">${businessType}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Phone</td>
-                    <td style="color:#f1f5f9">${phone}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Address</td>
-                    <td style="color:#f1f5f9">${address}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8">Tax ID</td>
-                    <td style="color:#f1f5f9">${taxId || "-"}</td>
-                  </tr>
-                  <tr>
-                    <td style="width:180px;color:#94a3b8;vertical-align:top">Description</td>
-                    <td style="color:#f1f5f9">${description}</td>
-                  </tr>
-                </table>
-
-                <div style="height:20px"></div>
-
-                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto">
-                  <tr>
-                    <td>
-                      <a href="${reviewPageLink}" style="display:inline-block;padding:12px 18px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600">Open Review Page</a>
-                    </td>
-                    <td style="width:12px"></td>
-                    <td>
-                      <a href="${approveDirect}" style="display:inline-block;padding:12px 18px;background:#10b981;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Approve</a>
-                    </td>
-                    <td style="width:12px"></td>
-                    <td>
-                      <a href="${rejectDirect}" style="display:inline-block;padding:12px 18px;background:#ef4444;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Reject</a>
-                    </td>
-                  </tr>
-                </table>
-
-                <p style="margin-top:16px;color:#94a3b8;font-size:12px">One‑click Approve/Reject above will finalize immediately and notify the applicant.</p>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:18px 28px;background:#0a0f1d;color:#64748b;font-family:Inter,Arial,sans-serif;font-size:12px">
-                © ${new Date().getFullYear()} Spectra. This link expires in 7 days.
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+  <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2>New Seller Application for Spectra</h2>
+    <p>A new seller has applied. Please review their details below.</p>
+    <ul>
+      <li><strong>Applicant Email:</strong> ${user.email}</li>
+      <li><strong>Business Name:</strong> ${businessName}</li>
+      <li><strong>Business Type:</strong> ${businessType}</li>
+      <li><strong>Phone:</strong> ${phone}</li>
+      <li><strong>Address:</strong> ${address}</li>
+      <li><strong>Tax ID:</strong> ${taxId || "N/A"}</li>
+      <li><strong>Description:</strong> ${description}</li>
+    </ul>
+    <h3>Actions</h3>
+    <p>
+      <a href="${reviewPageLink}" style="padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px;">Open Review Page</a>
+      <a href="${approveDirect}" style="padding: 10px 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px;">Approve</a>
+      <a href="${rejectDirect}" style="padding: 10px 15px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
+    </p>
+    <p style="font-size: 0.8em; color: #6c757d;">This link expires in 7 days.</p>
   </div>
     `;
 

@@ -9,7 +9,7 @@ import userRoutes from "./routes/user.js";
 import productRoutes from "./routes/productsRoutes.js";
 import adminRoutes from "./routes/admin.js";
 import sellerRoutes from "./routes/sellerRoutes.js";
-import orderRoutes from "./routes/orderRoutes.js";   // ✅ don’t forget this one!
+import orderRoutes from "./routes/orderRoutes.js";   
 
 // --- Middleware imports ---
 import { protect, protectSeller, protectAdmin } from "./middlewares/authMiddleware.js";

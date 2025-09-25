@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const nodemailer = require("nodemailer");
-const crypto = require("crypto");
 
 // In-memory OTP store (use DB or Redis in prod)
 const otpStore = {};
