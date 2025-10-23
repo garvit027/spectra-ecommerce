@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seller Application Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-xl text-center">
+        <h1 id="status-title" class="text-3xl font-bold mb-4">Processing...</h1>
+        <p id="status-message" class="text-gray-600">Please wait while we check your application status.</p>
+        <div id="status-icon" class="text-6xl my-6"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            const message = urlParams.get('message');
+
+            const statusTitle = document.getElementById('status-title');
+            const statusMessage = document.getElementById('status-message');
+            const statusIcon = document.getElementById('status-icon');
+
+            if (status && message) {
+                switch (status) {
+                    case 'approved':
+                        statusTitle.textContent = 'Application Approved!';
+                        statusMessage.textContent = message;
+                        statusIcon.textContent = '✅';
+                        statusTitle.classList.remove('text-red-500', 'text-blue-500');
+                        statusTitle.classList.add('text-green-600');
+                        break;
+                    case 'rejected':
+                        statusTitle.textContent = 'Application Rejected';
+                        statusMessage.textContent = message;
+                        statusIcon.textContent = '❌';
+                        statusTitle.classList.remove('text-green-600', 'text-blue-500');
+                        statusTitle.classList.add('text-red-500');
+                        break;
+                    case 'error':
+                        statusTitle.textContent = 'An Error Occurred';
+                        statusMessage.textContent = message;
+                        statusIcon.textContent = '⚠️';
+                        statusTitle.classList.remove('text-green-600', 'text-blue-500');
+                        statusTitle.classList.add('text-red-500');
+                        break;
+                    case 'info':
+                        statusTitle.textContent = 'Application Status';
+                        statusMessage.textContent = message;
+                        statusIcon.textContent = 'ℹ️';
+                        statusTitle.classList.remove('text-green-600', 'text-red-500');
+                        statusTitle.classList.add('text-blue-500');
+                        break;
+                    default:
+                        statusTitle.textContent = 'Invalid Status';
+                        statusMessage.textContent = 'The status could not be determined.';
+                        statusIcon.textContent = '❓';
+                        statusTitle.classList.remove('text-green-600', 'text-red-500');
+                        statusTitle.classList.add('text-gray-500');
+                        break;
+                }
+            } else {
+                statusTitle.textContent = 'No Status Found';
+                statusMessage.textContent = 'Please check the link you used to arrive here.';
+                statusIcon.textContent = '🤔';
+            }
+        });
+    </script>
+</body>
+</html>
