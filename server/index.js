@@ -26,6 +26,7 @@ app.use(
       process.env.FRONTEND_URL || "http://localhost:3000",
       "http://localhost:3000",
       "http://localhost:3001",
+      "https://spectra-ecommerce.vercel.app"
     ],
     credentials: true,
   })
