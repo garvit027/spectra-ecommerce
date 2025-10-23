@@ -1,4 +1,3 @@
-// backend/models/Order.js
 import mongoose from "mongoose";
 
 // --- Order Item Schema ---
@@ -21,6 +20,14 @@ const orderSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // buyer
 
     items: [orderItemSchema],
+
+    // --- ✅ ADDED ---
+    shippingAddress: {
+      fullName: { type: String, required: true },
+      address: { type: String, required: true },
+      phone: { type: String, default: "" },
+    },
+    // --- END ---
 
     subtotal: { type: Number, required: true, default: 0 },
     shipping: { type: Number, default: 0 },

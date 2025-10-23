@@ -4,9 +4,12 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, unique: true, required: true, index: true },
-    
+
     contactNo: { type: String, default: "" },
     age: { type: String, default: "" },
+
+    // ✅ ADDED ADDRESS FIELD
+    address: { type: String, default: "" },
 
     // Roles
     isAdmin: { type: Boolean, default: false },
@@ -24,7 +27,7 @@ const userSchema = new mongoose.Schema(
     businessInfo: {
       businessName: String,
       businessType: String,
-      address: String,
+      address: String, 
       phone: String,
       taxId: String,
       description: String,
