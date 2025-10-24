@@ -96,16 +96,15 @@ It’s designed with a **decoupled architecture**, where the React frontend comm
 
 | Page | Screenshot |
 |------|-------------|
-| Homepage / Product Listing | ![Homepage](path/to/homepage.png) |
-| Product Detail | ![Product Detail](path/to/product-detail.png) |
-| Shopping Cart | ![Cart](path/to/cart.png) |
-| Login/Signup (OTP) | ![Auth OTP](path/to/auth.png) |
-| Profile (View/Edit) | ![Profile](path/to/profile.png) |
-| Order History | ![Order History](path/to/order-history.png) |
-| Checkout Page | ![Checkout](path/to/checkout.png) |
-| Seller Application | ![Seller Form](path/to/seller-form.png) |
-| Seller Dashboard | ![Seller Dashboard](path/to/seller-dashboard.png) |
-| Admin Review Page | ![Admin Review](path/to/admin-review.png) |
+| Homepage / Product Listing | ![Homepage](https://i.ibb.co/7xQVZ4nM/Screenshot-2025-10-24-at-6-48-15-PM.png) |
+| Product Detail | ![Product Detail](https://i.ibb.co/MxLLRk1b/Screenshot-2025-10-24-at-6-48-22-PM.png) |
+| Shopping Cart | ![Cart](https://i.ibb.co/Wp5rvxnV/Screenshot-2025-10-24-at-6-49-26-PM.png) |
+| Login/Signup (OTP) | ![Auth OTP](https://i.ibb.co/5xnNSPfv/Screenshot-2025-10-24-at-6-50-15-PM.png) |
+| Profile (View/Edit) | ![Profile](https://i.ibb.co/tpWfYzxh/Screenshot-2025-10-24-at-6-48-44-PM.png) |
+| Order History | ![Order History](https://i.ibb.co/kgd2tTdj/Screenshot-2025-10-24-at-6-48-37-PM.png) |
+| Checkout Page | ![Checkout](https://i.ibb.co/vGRTM2h/Screenshot-2025-10-24-at-6-49-32-PM.png) |
+| Seller Application | ![Seller Form](https://i.ibb.co/WNdgK7Ck/Screenshot-2025-10-24-at-6-50-57-PM.png) |
+| Seller Dashboard | ![Seller Dashboard](https://i.ibb.co/GQFQK0vb/Screenshot-2025-10-24-at-6-48-50-PM.png) |
 
 ---
 
@@ -163,16 +162,6 @@ Spectra follows a **decoupled client-server architecture**:
 - **Client:** React SPA hosted on **Vercel**  
 - **Server:** Node.js/Express API hosted on **Render**  
 - **Database:** Cloud MongoDB via **Atlas**
-
----
-
-## ⚙️ **Getting Started**
-
-### 🧰 Prerequisites
-- Node.js (v18+)
-- npm or yarn
-- MongoDB (local or Atlas)
-- Git
 
 ---
 
