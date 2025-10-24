@@ -32,12 +32,6 @@ Spectra provides a seamless shopping experience with OTP-based authentication, p
 3. [Screenshots](#-screenshots)
 4. [Tech Stack](#-technology-stack)
 5. [Architecture](#-architecture)
-6. [Getting Started](#-getting-started)
-7. [Environment Variables](#-environment-variables)
-8. [Troubleshooting](#-troubleshooting)
-9. [Future Enhancements](#-future-enhancements)
-10. [Contributors](#-contributors)
-11. [License](#-license)
 
 ---
 
