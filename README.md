@@ -142,4 +142,21 @@ It’s designed with a **decoupled architecture**, where the React frontend comm
 
 Spectra follows a **decoupled client-server architecture**:
 
+           ┌──────────────────────────────┐
+           │         FRONTEND             │
+           │  React SPA (Vercel)          │
+           └──────────────┬───────────────┘
+                          │
+                          ▼
+           ┌──────────────────────────────┐
+           │          BACKEND             │
+           │ Node.js + Express (Render)   │
+           └──────────────┬───────────────┘
+                          │
+                          ▼
+           ┌──────────────────────────────┐
+           │          DATABASE            │
+           │   MongoDB Atlas (Cloud)      │
+           └──────────────────────────────┘
+
 
