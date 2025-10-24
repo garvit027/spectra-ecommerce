@@ -92,7 +92,7 @@ It’s designed with a **decoupled architecture**, where the React frontend comm
 
 ## 🖼️ **Screenshots**
 
-> Replace the placeholder image links below with actual screenshots.
+
 
 | Page | Screenshot |
 |------|-------------|
