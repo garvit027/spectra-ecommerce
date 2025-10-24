@@ -160,3 +160,118 @@ Spectra follows a **decoupled client-server architecture**:
            └──────────────────────────────┘
 
 
+- **Client:** React SPA hosted on **Vercel**  
+- **Server:** Node.js/Express API hosted on **Render**  
+- **Database:** Cloud MongoDB via **Atlas**
+
+---
+
+## ⚙️ **Getting Started**
+
+### 🧰 Prerequisites
+- Node.js (v18+)
+- npm or yarn
+- MongoDB (local or Atlas)
+- Git
+
+---
+
+### 📦 **Installation**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/garvit027/spectra-ecommerce.git
+cd spectra-ecommerce
+
+## 🖥️ **Backend Setup**
+
+```bash
+cd server
+npm install
+Create .env in /server (see Environment Variables).
+
+bash
+Copy code
+npm run dev   # For nodemon
+# or
+npm start
+Runs at: http://localhost:8080
+
+💻 Frontend Setup
+bash
+Copy code
+cd ../client
+npm install
+Create .env in /client:
+
+env
+Copy code
+REACT_APP_API_URL=http://localhost:8080
+Start React app:
+
+bash
+Copy code
+npm start
+Runs at: http://localhost:3000
+
+🔑 Environment Variables
+🧩 server/.env
+env
+Copy code
+NODE_ENV=development
+PORT=8080
+MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/spectra
+DB_NAME=spectra
+JWT_SECRET=YOUR_VERY_STRONG_JWT_SECRET
+FRONTEND_URL=http://localhost:3000
+
+# Email (Gmail Example)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_google_app_password
+
+# Admin Email
+ADMIN_EMAIL=your_admin_email@example.com
+
+# Twilio (Optional)
+# TWILIO_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# TWILIO_AUTH_TOKEN=your_auth_token
+# TWILIO_PHONE=+1xxxxxxxxxx
+# TEST_MODE=true
+💻 client/.env
+env
+Copy code
+REACT_APP_API_URL=http://localhost:8080
+🧩 Troubleshooting
+Issue	Possible Fix
+MongoDB connection error	Ensure .env has a valid MONGO_URI.
+CORS blocked requests	Check FRONTEND_URL in backend .env.
+OTP not sending	Use Gmail App Password or Twilio Test Mode.
+Frontend not loading	Confirm REACT_APP_API_URL points to backend.
+JWT verification fails	Regenerate JWT_SECRET.
+
+🧠 Future Enhancements
+💳 Payment Gateway Integration (Stripe / Razorpay)
+
+🏷️ Product Categories & Advanced Filtering
+
+📊 Admin Analytics Dashboard
+
+📬 Enhanced Email Templates
+
+🌍 Multi-language Support
+
+🔔 Real-time Notifications via WebSockets
+
+👨‍💻 Contributors
+Name	Role	GitHub
+Garvit Sharma	Full-Stack Developer	@garvit027
+
+Contributions, issues, and feature requests are welcome!
+👉 Open an Issue or Create a Pull Request.
+
+📝 License
+This project is licensed under the MIT License.
+See the LICENSE file for details.
+
+<div align="center"> <sub>Built with ❤️ by <a href="https://github.com/garvit027">Garvit Sharma</a></sub><br/> <sub>Powered by MERN Stack • Deployed on Vercel & Render</sub> </div> ```
+
