@@ -19,321 +19,12 @@ import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useL
 import { useAuth } from "../context/authContext"; // ✅ Import useAuth
 
 // -------- Seller Badge --------
-const SellerBadge = ({ status }) => {
-  if (status === "approved") {
-    return (
-      <div className="flex items-center gap-1 bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold mt-1">
-        <CheckCircle size={12} />
-        Verified Seller
-      </div>
-    );
-  }
-  if (status === "pending") {
-    return (
-      <div className="flex items-center gap-1 bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold mt-1">
-        <Clock size={12} />
-        Pending Review
-      </div>
-    );
-  }
-   // Optional: Add rejected status badge if desired
-   if (status === "rejected") {
-    return (
-      <div className="flex items-center gap-1 bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-semibold mt-1">
-        <X size={12} />
-        Application Rejected
-      </div>
-    );
-  }
-  return null; // Return null if status is 'none' or unrecognized
-};
+// Removed SellerBadge component
+
+
 
 // -------- Apply Seller Form --------
-const ApplySellerForm = ({ user, onClose, userLocation, onApplicationSubmit }) => {
-  const { updateUser } = useAuth(); // Get updateUser from auth context
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
-
-  const [formData, setFormData] = useState({
-    businessName: user.businessInfo?.businessName || "",
-    businessType: user.businessInfo?.businessType || "",
-    address: user.businessInfo?.address || userLocation || "", // Use detected location as fallback
-    phone: user.businessInfo?.phone || "", // Prefill phone if exists
-    taxId: user.businessInfo?.taxId || "",
-    description: user.businessInfo?.description || "",
-  });
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const clearMessage = () => setMessage("");
-
-  const sendOtp = async () => {
-    setMessage(""); // Clear previous messages
-    if (!/^\d{10}$/.test(formData.phone)) {
-      setMessage("❌ Enter a valid 10-digit phone number");
-      return;
-    }
-    setLoading(true);
-    try {
-      // NOTE: This assumes the send/verify OTP endpoints do NOT require auth token
-      const res = await fetch(`${API_URL}/api/users/seller/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formData.phone }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setOtpSent(true);
-        setMessage("✅ OTP sent successfully");
-      } else {
-        setMessage(`❌ ${data.error || 'Failed to send OTP'}`);
-      }
-    } catch(err) {
-      console.error("Send OTP Error:", err);
-      setMessage("❌ Server error while sending OTP");
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    setMessage("");
-    if (!otp || otp.length !== 6) { // Assuming 6-digit OTP
-      setMessage("❌ Enter the 6-digit OTP");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/users/seller/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formData.phone, otp }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setOtpVerified(true);
-        setMessage("✅ Phone verified successfully!");
-      } else {
-        setMessage(`❌ ${data.error || 'Invalid OTP'}`);
-      }
-    } catch(err) {
-      console.error("Verify OTP Error:", err);
-      setMessage("❌ Server error while verifying OTP");
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
-    if (!otpVerified) {
-      setMessage("❌ Please verify your phone number before submitting");
-      return;
-    }
-    // Basic validation for other fields
-    if (!formData.businessName || !formData.businessType || !formData.address || !formData.description) {
-        setMessage("❌ Please fill in all required business details.");
-        return;
-    }
-
-    setLoading(true);
-    try {
-      const token = user?.token;
-      if (!token) throw new Error("Authentication error. Please log in again.");
-
-      console.log("Submitting Seller Application:", formData); // Log data being sent
-
-      const res = await fetch(`${API_URL}/api/users/seller/apply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (res.status === 401) throw new Error("Session expired. Please log in again.");
-
-      const data = await res.json(); // Read response body
-
-      if (res.ok) {
-        console.log("Seller Application API Response:", data);
-        // Update user state locally immediately and in context
-        const updatedUserData = {
-          ...user,
-          sellerStatus: "pending",
-          isSeller: false, // Remains false until approved
-          businessInfo: { // Store the submitted info locally
-            ...formData,
-            appliedAt: new Date(), // Add appliedAt timestamp
-          },
-        };
-         updateUser(updatedUserData); // Update context and localStorage via context function
-         setMessage("✅ Application submitted successfully! You will be notified upon review.");
-         onApplicationSubmit(); // Call parent callback
-         setTimeout(onClose, 2000); // Close modal after delay
-      } else {
-         console.error("Seller Application Failed:", data);
-        setMessage(`❌ Application failed: ${data.error || data.message || 'Unknown server error'}`);
-      }
-    } catch (err) {
-       console.error("Handle Submit Seller Application Error:", err);
-      setMessage(`❌ Error submitting application: ${err.message}`);
-       if (err.message?.includes("Session expired")) {
-           // Optionally trigger logout from context here
-       }
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-auto max-h-[90vh] overflow-y-auto relative shadow-2xl">
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800" aria-label="Close form">
-            <X size={20} />
-        </button>
-        <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Apply as Seller</h3>
-
-        {/* --- Message Display --- */}
-        {message && (
-            <p className={`mb-4 text-sm text-center font-medium p-2 rounded ${
-                message.startsWith('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-                {message}
-            </p>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Business Name"
-            value={formData.businessName}
-            onChange={(e) => { clearMessage(); setFormData({ ...formData, businessName: e.target.value }); }}
-            required
-            className="w-full border border-gray-300 p-2 rounded focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-          />
-          <select
-            value={formData.businessType}
-            onChange={(e) => { clearMessage(); setFormData({ ...formData, businessType: e.target.value }); }}
-            required
-            className="w-full border border-gray-300 p-2 rounded bg-white focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-          >
-            <option value="">Select Business Type</option>
-            <option value="individual">Individual / Sole Proprietor</option>
-            <option value="small_business">Small Business / Partnership</option>
-            <option value="corporation">Corporation / LLC</option>
-            <option value="other">Other</option>
-          </select>
-          <textarea
-            placeholder="Full Business Address"
-            value={formData.address}
-            onChange={(e) => { clearMessage(); setFormData({ ...formData, address: e.target.value }); }}
-            required
-            rows={3}
-            className="w-full border border-gray-300 p-2 rounded focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-          />
-          {/* Phone Input & OTP */}
-          <div className="space-y-2">
-              <label htmlFor="seller-phone" className="text-sm font-medium text-gray-700">Phone Number (for verification)</label>
-              <div className="flex gap-2">
-                <input
-                    id="seller-phone"
-                    type="tel"
-                    placeholder="10-digit mobile"
-                    value={formData.phone}
-                    onChange={(e) => { clearMessage(); setFormData({ ...formData, phone: e.target.value }); }}
-                    required
-                    maxLength={10}
-                    pattern="\d{10}"
-                    title="Enter 10 digits"
-                    className={`flex-1 border p-2 rounded transition duration-150 ${otpVerified ? 'bg-green-50 border-green-300' : 'border-gray-300 focus:ring-purple-500 focus:border-purple-500'}`}
-                    disabled={otpVerified || loading} // Disable if verified or loading
-                    aria-describedby="phone-status"
-                />
-                {!otpVerified && (
-                     <button
-                        type="button"
-                        onClick={sendOtp}
-                        disabled={loading || !formData.phone || formData.phone.length !== 10}
-                        className={`px-3 py-2 rounded text-sm font-medium transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 ${otpSent ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'} disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                        {loading && !otpSent ? <Loader2 size={16} className="animate-spin"/> : (otpSent ? "Resend OTP" : "Send OTP")}
-                    </button>
-                )}
-                 {otpVerified && <CheckCircle size={20} className="text-green-600 self-center"/>}
-              </div>
-              <p id="phone-status" className="text-xs text-gray-500">
-                  {otpVerified ? "Phone number verified." : (otpSent ? "Enter the OTP received via SMS." : "We'll send an OTP to verify.")}
-              </p>
-          </div>
-          {/* OTP Input */}
-          {otpSent && !otpVerified && (
-            <div className="space-y-2">
-                <label htmlFor="seller-otp" className="text-sm font-medium text-gray-700">Enter OTP</label>
-                <div className="flex gap-2">
-                <input
-                    id="seller-otp"
-                    type="text"
-                    placeholder="6-digit code"
-                    value={otp}
-                    onChange={(e) => { clearMessage(); setOtp(e.target.value); }}
-                    maxLength={6}
-                    className="flex-1 border border-gray-300 p-2 rounded focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-                    disabled={loading}
-                />
-                <button
-                    type="button"
-                    onClick={verifyOtp}
-                    disabled={loading || otp.length !== 6}
-                    className="px-3 py-2 rounded bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {loading ? <Loader2 size={16} className="animate-spin"/> : "Verify OTP"}
-                </button>
-                </div>
-            </div>
-          )}
-          {/* Tax ID */}
-           <div>
-                <label htmlFor="seller-taxid" className="text-sm font-medium text-gray-700">Tax ID (e.g., GSTIN, optional)</label>
-                <input
-                    id="seller-taxid"
-                    type="text"
-                    placeholder="Enter your business Tax ID if applicable"
-                    value={formData.taxId}
-                    onChange={(e) => { clearMessage(); setFormData({ ...formData, taxId: e.target.value }); }}
-                    className="w-full mt-1 border border-gray-300 p-2 rounded focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-                />
-            </div>
-            {/* Description */}
-           <div>
-                <label htmlFor="seller-desc" className="text-sm font-medium text-gray-700">Business Description</label>
-                <textarea
-                    id="seller-desc"
-                    placeholder="Briefly describe your business and products"
-                    value={formData.description}
-                    onChange={(e) => { clearMessage(); setFormData({ ...formData, description: e.target.value }); }}
-                    required
-                    rows={3}
-                    className="w-full mt-1 border border-gray-300 p-2 rounded focus:ring-purple-500 focus:border-purple-500 transition duration-150"
-                />
-           </div>
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading || !otpVerified} // Disable until verified
-            className="w-full bg-purple-600 text-white py-2.5 rounded font-semibold hover:bg-purple-700 transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader2 size={20} className="animate-spin inline-block"/> : "Submit Application"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+// Removed ApplySellerForm component
 
 
 // -------- Navbar Component --------
@@ -344,7 +35,6 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
    const { user, updateUser } = useAuth(); // ✅ Get user and updateUser from context
 
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showSellerForm, setShowSellerForm] = useState(false);
   const [userLocation, setUserLocation] = useState(null); // Full address string
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationDisplay, setLocationDisplay] = useState("Get Location"); // Text displayed on button
@@ -360,12 +50,7 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
     navigate("/"); // Navigate to home after logout
   };
 
-   // Callback for ApplySellerForm to indicate submission
-   const handleApplicationSubmitted = () => {
-       console.log("Navbar: Seller application submitted flag received.");
-       // No need to manually update user state here, ApplySellerForm uses updateUser context function
-       setShowSellerForm(false); // Close the form
-   };
+   // Seller Application code removed
 
 
   // Fetch Geolocation and Reverse Geocode
@@ -455,12 +140,6 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
               <Link to="/" className="text-2xl font-bold text-purple-700 hover:text-purple-800 transition-colors">
                 Spectra
               </Link>
-               {/* Display Seller Badge next to logo if applicable */}
-               {user && user.sellerStatus !== 'none' && (
-                  <div className="ml-2 hidden sm:block">
-                     <SellerBadge status={user.sellerStatus} />
-                  </div>
-               )}
             </div>
 
             {/* Search Bar (Centered) */}
@@ -577,19 +256,6 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
                         </Link>
                         )}
 
-                        {/* Apply as Seller / Resubmit */}
-                        {!user.isSeller && user.sellerStatus !== 'approved' && (
-                             <button
-                                onClick={() => { setShowSellerForm(true); setShowDropdown(false); }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center gap-3 hover:bg-purple-50 hover:text-purple-700 transition-colors"
-                                role="menuitem"
-                             >
-                                <Store size={16} />
-                                {user.sellerStatus === "pending" || user.sellerStatus === "rejected"
-                                ? "Manage Seller Application"
-                                : "Apply as Seller"}
-                            </button>
-                        )}
 
                         {/* Logout Button */}
                          <div className="border-t border-gray-100 my-1"></div>
@@ -619,16 +285,6 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
          {/* <div className="md:hidden p-4 border-t border-gray-100"> ... </div> */}
       </nav>
 
-      {/* Seller Application Modal */}
-      {showSellerForm && user && ( // Ensure user exists before showing form
-        <ApplySellerForm
-          user={user}
-           // No setUser needed, form uses context's updateUser
-          onClose={() => setShowSellerForm(false)}
-          userLocation={userLocation} // Pass detected location
-          onApplicationSubmit={handleApplicationSubmitted} // Pass callback
-        />
-      )}
     </>
   );
 }
