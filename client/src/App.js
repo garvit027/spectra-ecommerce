@@ -178,61 +178,58 @@ function AppContent() {
         setSearchTerm={setSearchTerm}
       />
       {/* Main content area */}
-      <main className="flex-grow pt-20 sm:pt-24 px-4 max-w-7xl mx-auto w-full pb-10"> {/* Changed max-w-6xl to 7xl */}
-        {/* Display global loading/error for products */}
-         {loading && <p className="text-center py-10 text-gray-600">Loading products...</p>}
-         {error && <p className="text-center py-10 text-red-600 bg-red-50 p-4 rounded-md shadow-sm border border-red-200">Error fetching products: {error}</p>}
-
-        {/* Admin routes — outside product-loading gate */}
+      <main className="flex-grow pt-20 sm:pt-24 px-4 max-w-7xl mx-auto w-full pb-10">
         <Routes>
+          {/* Public Routes */}
+          <Route 
+            path="/" 
+            element={
+              loading ? (
+                <p className="text-center py-10 text-gray-600">Loading products...</p>
+              ) : error ? (
+                <p className="text-center py-10 text-red-600 bg-red-50 p-4 rounded-md shadow-sm border border-red-200">Error fetching products: {error}</p>
+              ) : (
+                <ProductList products={products} />
+              )
+            } 
+          />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/search" element={<SearchResultsPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/seller-application-status" element={<SellerApplicationStatus />} />
+          <Route path="/admin/seller-review/:token" element={<AdminSellerReview />} />
+          <Route path="/verified-success" element={<VerifiedPage />} />
+          <Route path="/rejected-status" element={<RejectedPage />} />
+          <Route path="/store/:sellerId" element={<SellerStore />} />
+
+          {/* --- Private Routes --- */}
+          <Route path="/buy-now-checkout" element={<PrivateRoute user={user}><BuyNowCheckout /></PrivateRoute>} />
+          <Route path="/cart-checkout" element={<PrivateRoute user={user}><CartCheckout /></PrivateRoute>} />
+          <Route path="/order-confirmation" element={<PrivateRoute user={user}><OrderConfirmation /></PrivateRoute>} />
+          <Route path="/order-history" element={<PrivateRoute user={user}><OrderHistoryPage /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute user={user}><ProfilePage /></PrivateRoute>} />
+          <Route path="/seller/dashboard" element={<PrivateRoute user={user}><SellerDashboard user={user} /></PrivateRoute>} />
+          <Route path="/apply-seller" element={<PrivateRoute user={user}><ApplySeller /></PrivateRoute>} />
+
+          {/* --- Admin / Dashboard Routes --- */}
           <Route path="/admin" element={<AdminRoute user={user}><AdminPage /></AdminRoute>} />
           <Route path="/admin/control" element={<AdminRoute user={user}><AdminPage /></AdminRoute>} />
+          <Route path="/admin/dashboard" element={<AdminRoute user={user}><AdminDashboard products={products} /></AdminRoute>} />
+          <Route path="/admin/add" element={<AdminRoute user={user}><AddProduct setProducts={setProducts} /></AdminRoute>} />
+
+          {/* --- 404 Not Found Route --- */}
+          <Route path="*" element={
+                  <div className="text-center py-20">
+                      <h1 className="text-4xl font-bold text-red-600 mb-4">404</h1>
+                      <p className="text-lg text-gray-700">Oops! Page not found.</p>
+                      <button onClick={() => navigate('/')} className="mt-6 px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                          Go Home
+                      </button>
+                  </div>
+              }
+          />
         </Routes>
-
-        {/* Render product-dependent routes only when not loading products and no error */}
-        {loading && <p className="text-center py-10 text-gray-600">Loading products...</p>}
-        {error  && <p className="text-center py-10 text-red-600 bg-red-50 p-4 rounded-md shadow-sm border border-red-200">Error fetching products: {error}</p>}
-
-        {!loading && !error && (
-            <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<ProductList products={products} />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/search" element={<SearchResultsPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/seller-application-status" element={<SellerApplicationStatus />} />
-                <Route path="/admin/seller-review/:token" element={<AdminSellerReview />} />
-                <Route path="/verified-success" element={<VerifiedPage />} />
-                <Route path="/rejected-status" element={<RejectedPage />} />
-                <Route path="/store/:sellerId" element={<SellerStore />} />
-
-                {/* --- Private Routes --- */}
-                <Route path="/buy-now-checkout" element={<PrivateRoute user={user}><BuyNowCheckout /></PrivateRoute>} />
-                <Route path="/cart-checkout" element={<PrivateRoute user={user}><CartCheckout /></PrivateRoute>} />
-                <Route path="/order-confirmation" element={<PrivateRoute user={user}><OrderConfirmation /></PrivateRoute>} />
-                <Route path="/order-history" element={<PrivateRoute user={user}><OrderHistoryPage /></PrivateRoute>} />
-                <Route path="/profile" element={<PrivateRoute user={user}><ProfilePage /></PrivateRoute>} />
-                <Route path="/seller/dashboard" element={<PrivateRoute user={user}><SellerDashboard user={user} /></PrivateRoute>} />
-                <Route path="/apply-seller" element={<PrivateRoute user={user}><ApplySeller /></PrivateRoute>} />
-
-                {/* --- Legacy Admin Routes --- */}
-                <Route path="/admin/dashboard" element={<AdminRoute user={user}><AdminDashboard products={products} /></AdminRoute>} />
-                <Route path="/admin/add" element={<AdminRoute user={user}><AddProduct setProducts={setProducts} /></AdminRoute>} />
-
-                {/* --- 404 Not Found Route --- */}
-                <Route path="*" element={
-                        <div className="text-center py-20">
-                            <h1 className="text-4xl font-bold text-red-600 mb-4">404</h1>
-                            <p className="text-lg text-gray-700">Oops! Page not found.</p>
-                            <button onClick={() => navigate('/')} className="mt-6 px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                                Go Home
-                            </button>
-                        </div>
-                    }
-                />
-            </Routes>
-        )}
       </main>
       <Footer />
     </div>
