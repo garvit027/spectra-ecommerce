@@ -5,7 +5,7 @@ import {
   Truck, Shield, RotateCcw, CheckCircle, ChevronRight, ZoomIn, X, Zap, ThumbsUp, Flag
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import { api, API_URL } from "../api/client"; // Removed getToken
+import { API_URL } from "../api/client";
 import { useAuth } from "../context/authContext";
 import AIReviewAnalysis from "../components/AIReviewAnalysis";
 

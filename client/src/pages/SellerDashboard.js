@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Bell, Settings, Plus, Edit3, Trash2, ShoppingBag, Package, Users,
-  Star, Eye, PauseCircle, PlayCircle, Clock, Shield, LineChart, Rocket,
+  Star, Eye, PauseCircle, PlayCircle, Shield, LineChart, Rocket,
   TrendingUp, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp
 } from "lucide-react";
 
@@ -908,6 +908,7 @@ function Stat({ title, value, icon: Icon }) {
 
 // Add this new component to the bottom of src/pages/SellerDashboard.js
 
+// eslint-disable-next-line no-unused-vars
 function SalesChart({ data }) {
   // If there's no data, show a clear message.
   if (!data || data.length === 0) {
@@ -960,6 +961,7 @@ function SalesChart({ data }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Toggle({ label, checked, onChange, iconOn: IconOn = CheckCircle2, iconOff: IconOff = XCircle }) {
   return (
     <button

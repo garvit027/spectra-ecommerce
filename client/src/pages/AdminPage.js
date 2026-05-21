@@ -5,7 +5,7 @@ import { useSocket } from "../context/SocketContext";
 import toast from "react-hot-toast";
 import {
   LayoutDashboard, Users, ShoppingBag, Package, 
-  CheckCircle, XCircle, Clock, TrendingUp,
+  CheckCircle, XCircle,
   ChevronDown, ChevronUp, Search, RefreshCw, Shield, LogOut, Eye, Loader2
 } from "lucide-react";
 

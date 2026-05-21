@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
 import { useCart } from '../context/CartContext'; // Import useCart to clear cart on success
@@ -35,9 +35,8 @@ const CartCheckout = () => {
     });
   };
 
-  // Extract cart items and total price from location state
-  const cartItems = state?.cartItems || [];
-  const totalPriceFromCart = state?.totalPrice || 0; // Use the total passed from cart
+  // Extract cart items from location state (memoized to keep a stable reference for useEffect)
+  const cartItems = useMemo(() => state?.cartItems || [], [state?.cartItems]);
 
   // Effect to sync address form if user data loads/updates
   useEffect(() => {
@@ -49,7 +48,7 @@ const CartCheckout = () => {
         phone: user.phone || '',
       });
     }
-  }, [user]);
+  }, [user, shippingAddress.fullName]);
 
   // Redirect if cart is empty or user logs out
   useEffect(() => {

@@ -42,7 +42,7 @@ const BuyNowCheckout = () => {
         phone: user.phone || '',
       });
     }
-  }, [user]); // Rerun when user object loads/changes
+  }, [user, shippingAddress.fullName]); // Rerun when user object loads/changes
 
 
   // Redirect if essential data is missing or user logs out

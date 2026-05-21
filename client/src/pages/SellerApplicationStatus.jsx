@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
-import { CheckCircle, XCircle, Clock, ArrowRight, RefreshCw, LogOut, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";

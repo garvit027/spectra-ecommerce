@@ -12,3 +12,4 @@ coverage
 /Users/garvitjuneja27/spectra-commerce-ai && git ls-files -- server/.env | cat.env.example
 server/.env
 client/.env
+node_modules
