@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
 import { api } from '../api/client';
 import { CheckCircle, Loader2, AlertCircle, Package, MapPin, CreditCard, ArrowLeft, ListOrdered } from 'lucide-react';
+import OrderTimeline from '../components/OrderTimeline';
 
 const OrderConfirmation = () => {
   const [searchParams] = useSearchParams();
@@ -138,6 +139,8 @@ const OrderConfirmation = () => {
             </p>
              <p className="text-gray-500 text-xs mt-1">Placed on: {new Date(order.placedAt || order.createdAt).toLocaleString()}</p>
           </div>
+
+          <OrderTimeline status={order.status} />
 
           {/* Order Items */}
           <div className="mb-6 border-b border-gray-200 pb-4">

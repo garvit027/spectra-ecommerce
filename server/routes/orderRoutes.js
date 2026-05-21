@@ -1,10 +1,58 @@
 import express from "express";
+import crypto from "crypto";
+import Razorpay from "razorpay";
 import Order from "../models/Order.js";
 // Ensure the path to Product model is correct based on your folder structure
 import Product from "../models/Product.js";
 import { protect, protectSeller, protectAdmin } from "../middlewares/authMiddleware.js";
+import transporter from "../utils/email.js";
+import { generateInvoiceBuffer } from "../utils/invoiceGenerator.js";
+import { getEmailTemplate } from "../utils/emailTemplate.js";
+import { sendAdminDashboard } from "../utils/adminDashboard.js";
 
 const router = express.Router();
+
+async function handlePaymentSuccess(order, req) {
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("order_update", {
+      orderId: order._id,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      user: order.user
+    });
+  }
+
+  try {
+    const pdfBuffer = await generateInvoiceBuffer(order);
+    await order.populate("user", "email name");
+    
+    const userEmail = order.user?.email || (req.user && req.user.email);
+    if (userEmail) {
+      const content = `
+        <p>Thank you for shopping with Spectra Commerce!</p>
+        <p>Your payment has been successfully processed. Please find your detailed invoice attached to this email.</p>
+        <p>If you have any questions about your order, feel free to reply directly to this email.</p>
+        <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/order-history" class="btn">Track Your Order</a></p>
+      `;
+      await transporter.sendMail({
+        from: `Spectra Commerce <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: `Invoice for your Spectra Commerce Order ${order._id}`,
+        html: getEmailTemplate(`Order Confirmed!`, content),
+        attachments: [
+          {
+            filename: `invoice_${order._id}.pdf`,
+            content: pdfBuffer
+          }
+        ]
+      });
+      console.log(`Invoice emailed for order ${order._id}`);
+    }
+  } catch (err) {
+    console.error("Failed to generate or send invoice:", err);
+  }
+}
 
 /**
  * @route   POST /api/orders
@@ -13,7 +61,7 @@ const router = express.Router();
  */
 router.post("/", protect, async (req, res) => {
   try {
-    const { items, shippingAddress, subtotal, shipping, tax, total } = req.body;
+    const { items, shippingAddress, subtotal, shipping, tax, total, paymentMethod } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "No order items" });
@@ -28,11 +76,7 @@ router.post("/", protect, async (req, res) => {
          return res.status(400).json({ message: "Total price is required" });
     }
 
-
-    // Optional: Add more validation for prices, quantities etc.
-
-
-    // Update stock counts - Wrap in transaction later if needed for atomicity
+    // Update stock counts
     for (const item of items) {
        if (!item.product || !item.qty || item.qty <= 0) {
            return res.status(400).json({ message: `Invalid item data: ${JSON.stringify(item)}` });
@@ -47,7 +91,6 @@ router.post("/", protect, async (req, res) => {
       // Decrement stock
       product.stock -= item.qty;
       await product.save();
-       // Consider adding sold count increment if needed: product.sold = (product.sold || 0) + item.qty;
     }
 
     const order = new Order({
@@ -74,16 +117,80 @@ router.post("/", protect, async (req, res) => {
       status: "pending",           // Default status
       paymentStatus: "unpaid",     // Default payment status
       placedAt: new Date(),
-      // paymentMethod: req.body.paymentMethod || 'COD' // Optional: Save payment method if sent
+      paymentMethod: paymentMethod || 'COD'
     });
 
-    const createdOrder = await order.save();
+    let createdOrder = await order.save();
+
+    if (paymentMethod === 'Razorpay') {
+      let razorpayOrderId = null;
+      const hasKeyId = !!process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_placeholder';
+      const hasSecret = !!process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_KEY_SECRET !== 'placeholder_secret';
+
+      if (hasKeyId && hasSecret) {
+        try {
+          const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+          });
+
+          const rzpOrder = await razorpay.orders.create({
+            amount: Math.round(total * 100), // in paise
+            currency: "INR",
+            receipt: `receipt_${createdOrder._id}`,
+          });
+          razorpayOrderId = rzpOrder.id;
+        } catch (rzpErr) {
+          console.error("Razorpay Order Creation Error:", rzpErr);
+          if (process.env.TEST_MODE === "true") {
+            console.warn("Razorpay API failed, falling back to mock Razorpay order ID since TEST_MODE=true");
+            razorpayOrderId = `mock_rzp_${Date.now()}`;
+          } else {
+            // Rollback order stock and delete order if razorpay fails and not in test mode
+            for (const item of items) {
+              const product = await Product.findById(item.product);
+              if (product) {
+                product.stock += item.qty;
+                await product.save();
+              }
+            }
+            await Order.findByIdAndDelete(createdOrder._id);
+            return res.status(500).json({ message: "Razorpay payment initialization failed: " + rzpErr.message });
+          }
+        }
+      } else {
+        console.log("[RAZORPAY MOCK MODE] Missing/placeholder Razorpay keys. Generating mock Razorpay Order ID.");
+        razorpayOrderId = `mock_rzp_${Date.now()}`;
+      }
+
+      createdOrder.razorpayOrderId = razorpayOrderId;
+      createdOrder = await createdOrder.save();
+    }
+
     console.log("Order created successfully:", createdOrder._id);
-    res.status(201).json(createdOrder);
+
+    // 🔴 Socket.io: notify seller of new order in real-time
+    const io = req.app.get("io");
+    if (io) io.emit("new_order", { orderId: createdOrder._id, total, items, user: req.user.id });
+
+    // 📧 Admin dashboard email for new order
+    const itemList = items.map(i => `<li>${i.name} x${i.qty} — Rs. ${i.price * i.qty}</li>`).join("");
+    sendAdminDashboard(
+      `New Order Placed — Rs. ${total}`,
+      "New Order Received! 🛒",
+      `<p>A new order has been placed on Spectra Commerce.</p>
+       <ul style="padding-left:16px;">${itemList}</ul>
+       <p><strong>Total: Rs. ${total}</strong></p>
+       <p>Payment Method: ${paymentMethod || "COD"}</p>`
+    );
+
+    res.status(201).json({
+      ...createdOrder.toObject(),
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder'
+    });
 
   } catch (err) {
     console.error("Create Order Error:", err);
-    // Provide more context for debugging
     if (err.name === 'ValidationError') {
        return res.status(400).json({ error: "Validation failed", details: err.message });
     }
@@ -312,7 +419,16 @@ router.patch("/:id/status", protect, async (req, res) => { // Using general prot
 
       await order.save();
       console.log(`Order ${order._id} status updated to ${status} by user ${req.user.id}.`);
-      // Consider sending status update notification to buyer
+      
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("order_update", {
+          orderId: order._id,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          user: order.user
+        });
+      }
       res.json(order.toObject()); // Return plain object
 
   } catch (err) {
@@ -320,6 +436,131 @@ router.patch("/:id/status", protect, async (req, res) => { // Using general prot
        res.status(500).json({ error: "Failed to update order status" });
   }
 
+});
+
+/**
+ * @route   POST /api/orders/:id/verify-razorpay
+ * @desc    Verify Razorpay payment signature
+ * @access  Private (User)
+ */
+router.post("/:id/verify-razorpay", protect, async (req, res) => {
+  try {
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.paymentStatus === 'paid') {
+      return res.status(400).json({ message: "Order is already paid" });
+    }
+
+    // Verify if it is a mock order
+    const isMock = razorpay_order_id && razorpay_order_id.startsWith("mock_rzp_");
+
+    if (isMock) {
+      console.log("[RAZORPAY MOCK MODE] Verifying mock signature.");
+      order.paymentStatus = "paid";
+      order.paidAt = Date.now();
+      order.status = "processing";
+      order.paymentResult = {
+        id: razorpay_payment_id || `mock_pay_${Date.now()}`,
+        status: "succeeded",
+        update_time: new Date().toISOString(),
+        email_address: req.user.email || "mock@example.com",
+      };
+      await order.save();
+      await handlePaymentSuccess(order, req);
+      return res.json({ success: true, order });
+    }
+
+    const hasSecret = !!process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_KEY_SECRET !== 'placeholder_secret';
+    if (!hasSecret) {
+      return res.status(500).json({ message: "Razorpay secret is not configured on the server." });
+    }
+
+    const generated_signature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest("hex");
+
+    if (generated_signature === razorpay_signature) {
+      order.paymentStatus = "paid";
+      order.paidAt = Date.now();
+      order.status = "processing";
+      order.paymentResult = {
+        id: razorpay_payment_id,
+        status: "succeeded",
+        update_time: new Date().toISOString(),
+        email_address: req.user.email || "payment@example.com",
+      };
+      await order.save();
+      console.log(`Razorpay Payment verified for order ${order._id}`);
+      await handlePaymentSuccess(order, req);
+      res.json({ success: true, order });
+    } else {
+      console.error(`Invalid Razorpay signature for order ${order._id}`);
+      res.status(400).json({ message: "Payment verification failed (signature mismatch)" });
+    }
+  } catch (err) {
+    console.error("Razorpay Signature Verification Error:", err);
+    res.status(500).json({ error: "Failed to verify Razorpay signature." });
+  }
+});
+
+/**
+ * @route   POST /api/orders/webhook/razorpay
+ * @desc    Razorpay Webhook for payment events
+ * @access  Public
+ */
+router.post("/webhook/razorpay", async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_KEY_SECRET; 
+    if (!secret) return res.status(500).send("Webhook secret missing");
+
+    const signature = req.headers["x-razorpay-signature"];
+    if (!signature) return res.status(400).send("Missing signature");
+
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(req.body)
+      .digest("hex");
+
+    if (expectedSignature !== signature) {
+      console.error("Invalid webhook signature");
+      return res.status(400).send("Invalid signature");
+    }
+
+    const event = JSON.parse(req.body.toString());
+    
+    if (event.event === "order.paid") {
+      const paymentEntity = event.payload.payment.entity;
+      const rzpOrderId = paymentEntity.order_id;
+      
+      const order = await Order.findOne({ razorpayOrderId: rzpOrderId });
+      if (order && order.paymentStatus !== "paid") {
+        order.paymentStatus = "paid";
+        order.paidAt = Date.now();
+        order.status = "processing";
+        order.paymentResult = {
+          id: paymentEntity.id,
+          status: paymentEntity.status,
+          update_time: new Date().toISOString(),
+          email_address: paymentEntity.email,
+        };
+        await order.save();
+        console.log(`Webhook marked order ${order._id} as paid.`);
+        
+        await handlePaymentSuccess(order, req);
+      }
+    }
+    
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("Razorpay webhook error:", err);
+    res.status(500).send("Internal Server Error");
+  }
 });
 
 export default router;

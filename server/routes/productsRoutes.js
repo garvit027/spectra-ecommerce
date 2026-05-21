@@ -1,8 +1,10 @@
 import express from "express";
 import Product from "../models/Product.js";
-import SellerSettings from "../models/SellerSettings.js";
 import User from "../models/User.js";
 import { protect, protectSeller, protectAdmin } from "../middlewares/authMiddleware.js";
+import { upload } from "../utils/cloudinary.js";
+import { analyzeReviewsWithGemini } from "../utils/geminiAnalysis.js";
+import { sendAdminDashboard } from "../utils/adminDashboard.js";
 
 const router = express.Router();
 
@@ -10,28 +12,13 @@ const router = express.Router();
  * Utility: Seller visibility check
  ---------------------------------*/
 async function sellerAllowsVisibility(sellerId) {
-  const s = await SellerSettings.findOne({ seller: sellerId }).lean();
-  if (!s) return true; // default visible
-  if (!s.storeActive) return false;
-
-  const now = new Date();
-
-  // Holiday check
-  if (s.holiday?.on && s.holiday?.date) {
-    const d = new Date(s.holiday.date);
-    if (d.toDateString() === now.toDateString()) {
-      if (s.holiday.mode === "pause") return false;
-    }
+  try {
+    const seller = await User.findById(sellerId).lean();
+    // If seller is on vacation, products should be hidden
+    return seller && !seller.onVacation;
+  } catch (err) {
+    return false;
   }
-
-  // Vacation check
-  if (s.vacation?.on && s.vacation.start && s.vacation.end) {
-    if (now >= new Date(s.vacation.start) && now <= new Date(s.vacation.end)) {
-      if (s.vacation.hideProducts) return false;
-    }
-  }
-
-  return true;
 }
 
 /** -------------------------------
@@ -41,7 +28,7 @@ router.get("/", async (req, res) => {
   try {
     const base = await Product.find({ status: "approved", isActive: { $ne: false } })
       .select("-__v")
-      .populate("seller", "name email")
+      .populate("seller", "name email sellerStatus")
       .lean();
 
     // Re-use the seller visibility filter
@@ -81,7 +68,7 @@ router.get("/search", async (req, res) => {
 
     const base = await Product.find({ ...keyword, status: "approved", isActive: { $ne: false } })
       .select("-__v")
-      .populate("seller", "name email")
+      .populate("seller", "name email sellerStatus")
       .lean();
 
     // Re-use the seller visibility filter
@@ -109,7 +96,7 @@ router.get("/search", async (req, res) => {
  ---------------------------------*/
 router.get("/:id", async (req, res) => {
   try {
-    const p = await Product.findById(req.params.id).populate("seller", "name email").lean();
+    const p = await Product.findById(req.params.id).populate("seller", "name email sellerStatus").lean();
     if (!p) return res.status(404).json({ message: "Not found" });
 
     const vis = await sellerAllowsVisibility(p.seller._id || p.seller);
@@ -130,10 +117,36 @@ router.get("/all/list", protectAdmin, async (req, res) => {
   try {
     const products = await Product.find({})
       .select("-__v")
-      .populate("seller", "name email");
+      .populate("seller", "name email sellerStatus")
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+/** -------------------------------
+ * Public: List products by seller
+ ---------------------------------*/
+router.get("/seller/:sellerId", async (req, res) => {
+  try {
+    const seller = await User.findById(req.params.sellerId).select("name email sellerStatus businessInfo onVacation").lean();
+    if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+    if (seller.onVacation) {
+      return res.json({ products: [], seller, onVacation: true });
+    }
+
+    const products = await Product.find({ 
+      seller: req.params.sellerId, 
+      status: "approved", 
+      isActive: { $ne: false } 
+    })
+    .populate("seller", "name email sellerStatus businessInfo onVacation")
+    .lean();
+    
+    res.json({ products, seller, onVacation: false });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch seller products" });
   }
 });
 
@@ -160,30 +173,49 @@ router.post("/", protectSeller, async (req, res) => {
       return res.status(400).json({ error: "Name, description and price are required" });
     }
 
-    const firstImageAsBanner = images && images.length > 0 ? [images[0]] : [];
+    const productImages = Array.isArray(images) ? images.filter(img => img && img.trim() !== "") : [];
+    const firstImageAsBanner = productImages.length > 0 ? [productImages[0]] : [];
 
     const newProduct = new Product({
       name,
       description,
-      price,
-      category,
-      stock,
-      images: images?.length ? images : [],
+      price: Number(price) || 0,
+      category: category || "Uncategorized",
+      stock: Number(stock) || 0,
+      images: productImages,
       bannerImages: firstImageAsBanner,
-      descriptionImages: descriptionImages?.length ? descriptionImages : [],
-      specifications,
-      variants,
-      brand,
+      descriptionImages: Array.isArray(descriptionImages) ? descriptionImages : [],
+      specifications: specifications || {},
+      variants: Array.isArray(variants) ? variants : [],
+      brand: brand || "",
       seller: req.user._id,
       status: req.user.isAdmin ? "approved" : "pending",
       isActive: true,
     });
 
     await newProduct.save();
+
+    // 🔴 Socket.io: broadcast new product live
+    const io = req.app.get("io");
+    if (io) io.emit("product_created", newProduct);
+
+    // 📧 Admin email notification
+    sendAdminDashboard(
+      `New Product Listed: ${name}`,
+      "New Product Listed",
+      `<p><strong>${req.user.name}</strong> just listed a new product.</p>
+       <table style="width:100%;border-collapse:collapse;font-size:14px;">
+         <tr><td style="padding:6px 0;"><strong>Product:</strong></td><td>${name}</td></tr>
+         <tr><td><strong>Price:</strong></td><td>Rs. ${price}</td></tr>
+         <tr><td><strong>Category:</strong></td><td>${category || "Uncategorized"}</td></tr>
+         <tr><td><strong>Stock:</strong></td><td>${stock}</td></tr>
+       </table>`
+    );
+
     res.status(201).json(newProduct);
   } catch (err) {
-    console.error("Error adding product:", err);
-    res.status(500).json({ error: "Failed to add product" });
+    console.error("Add Product Error:", err);
+    res.status(500).json({ error: "Failed to add product", details: err.message });
   }
 });
 
@@ -199,13 +231,30 @@ router.put("/:id", protectSeller, async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    Object.keys(req.body).forEach((f) => {
-      product[f] = req.body[f] !== undefined ? req.body[f] : product[f];
+    const updates = { ...req.body };
+    
+    // Handle banner logic if images are updated
+    if (updates.images && Array.isArray(updates.images)) {
+      const validImages = updates.images.filter(img => img && img.trim() !== "");
+      updates.images = validImages;
+      if (validImages.length > 0) {
+        updates.bannerImages = [validImages[0]];
+      }
+    }
+
+    Object.keys(updates).forEach((f) => {
+      if (updates[f] !== undefined) product[f] = updates[f];
     });
 
     await product.save();
+
+    // 🔴 Socket.io: broadcast product update live
+    const io = req.app.get("io");
+    if (io) io.emit("product_updated", product);
+
     res.json(product);
   } catch (err) {
+    console.error("Update error:", err);
     res.status(500).json({ error: "Failed to update product" });
   }
 });
@@ -223,6 +272,11 @@ router.delete("/:id", protectSeller, async (req, res) => {
     }
 
     await product.deleteOne();
+
+    // 🔴 Socket.io: broadcast product deletion live
+    const io = req.app.get("io");
+    if (io) io.emit("product_deleted", { _id: req.params.id });
+
     res.json({ message: "Product deleted successfully." });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete product" });
@@ -248,8 +302,12 @@ router.post("/:id/reviews", protect, async (req, res) => {
     product.reviews.push({ user: req.user._id, name: req.user.name, rating, comment, images, createdAt: new Date() });
 
     product.recomputeRating();
-
     await product.save();
+
+    // 🔴 Socket.io: broadcast review update live
+    const io = req.app.get("io");
+    if (io) io.emit("product_updated", { _id: product._id, rating: product.rating, numReviews: product.numReviews });
+
     res.status(201).json(product);
   } catch (err) {
     res.status(500).json({ error: "Failed to add review" });
@@ -281,7 +339,27 @@ router.patch("/:id/active", protectSeller, async (req, res) => {
 
   p.isActive = !!req.body.isActive;
   await p.save();
+
+  const io = req.app.get("io");
+  if (io) io.emit("product_updated", { _id: p._id, isActive: p.isActive });
+
   res.json({ isActive: p.isActive });
+});
+
+/** -------------------------------
+ * Public: Gemini AI Review Analysis
+ ---------------------------------*/
+router.get("/:id/ai-analysis", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).lean();
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const analysis = await analyzeReviewsWithGemini(product.reviews, product.name);
+    res.json(analysis);
+  } catch (err) {
+    console.error("Gemini analysis error:", err);
+    res.status(500).json({ error: "AI analysis failed. Please try again later." });
+  }
 });
 
 export default router;

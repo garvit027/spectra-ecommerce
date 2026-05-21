@@ -10,12 +10,27 @@ const BuyNowCheckout = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   // Initialize address state from user context
   const [shippingAddress, setShippingAddress] = useState({
     fullName: user?.name || '',
     address: user?.address || '',
     phone: user?.phone || '',
   });
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   // Effect to sync address form if user data loads/updates *after* initial mount
   useEffect(() => {
@@ -114,7 +129,7 @@ const BuyNowCheckout = () => {
         shipping: shippingCost,
         tax: tax,
         total: total,
-        // paymentMethod: 'COD' // Explicitly set if using default
+        paymentMethod: paymentMethod === 'razorpay' ? 'Razorpay' : 'COD'
       };
 
       console.log("handlePlaceOrder: Sending POST /api/orders with body:", JSON.stringify(orderBody, null, 2)); // Log body
@@ -124,29 +139,123 @@ const BuyNowCheckout = () => {
 
       console.log("handlePlaceOrder: Order placed successfully, response:", newOrder); // Log success
 
-      // ✅ Redirect to the order confirmation page on success
-      navigate(`/order-confirmation?orderId=${newOrder?._id || "error"}`, { replace: true });
+      if (paymentMethod === 'razorpay') {
+        if (newOrder.razorpayOrderId && newOrder.razorpayOrderId.startsWith("mock_rzp_")) {
+          // Sandbox simulation mode
+          setTimeout(async () => {
+            const confirmPayment = window.confirm(
+              "✨ [Razorpay Sandbox Mode] ✨\n\nNo active API keys found. Would you like to simulate a successful payment for this order?"
+            );
+            if (confirmPayment) {
+              try {
+                setLoading(true);
+                const verificationResult = await api.post(
+                  `/api/orders/${newOrder._id}/verify-razorpay`,
+                  {
+                    razorpay_payment_id: `mock_pay_${Date.now()}`,
+                    razorpay_order_id: newOrder.razorpayOrderId,
+                    razorpay_signature: "mock_signature",
+                  },
+                  { token: user.token }
+                );
+                if (verificationResult && verificationResult.success) {
+                  navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+                } else {
+                  setError("Mock payment verification failed.");
+                }
+              } catch (err) {
+                console.error("Mock verification error:", err);
+                setError(err.message || "Mock payment verification failed.");
+              } finally {
+                setLoading(false);
+              }
+            } else {
+              setLoading(false);
+              setError("Payment cancelled in mock sandbox.");
+            }
+          }, 800);
+          return;
+        }
+
+        // Live Razorpay Mode
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          setError("Failed to load Razorpay SDK. Please check your internet connection.");
+          setLoading(false);
+          return;
+        }
+
+        const options = {
+          key: newOrder.razorpayKeyId,
+          amount: Math.round(newOrder.total * 100),
+          currency: newOrder.currency || "INR",
+          name: "Spectra Commerce",
+          description: `Order Payment for ${newOrder._id}`,
+          order_id: newOrder.razorpayOrderId,
+          handler: async function (response) {
+            try {
+              setLoading(true);
+              const verificationResult = await api.post(
+                `/api/orders/${newOrder._id}/verify-razorpay`,
+                {
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
+                { token: user.token }
+              );
+
+              if (verificationResult && verificationResult.success) {
+                navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+              } else {
+                setError("Payment verification failed. Please contact support.");
+              }
+            } catch (err) {
+              console.error("Payment verification error:", err);
+              setError(err.message || "Payment verification failed.");
+            } finally {
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: shippingAddress.fullName,
+            contact: shippingAddress.phone,
+            email: user.email,
+          },
+          theme: {
+            color: "#7c3aed",
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        // COD path
+        navigate(`/order-confirmation?orderId=${newOrder?._id || "error"}`, { replace: true });
+      }
 
     } catch (e) {
-      // Log the detailed error
       console.error("handlePlaceOrder: Failed to place order. Error object:", e);
-      // Try to get a more specific message
       let errorMessage = "An unknown error occurred while placing the order. Please try again.";
       if (e?.status === 401) {
           errorMessage = "Your session may have expired. Please log in again.";
-          // Optionally logout user here if desired
-          // logout();
           navigate('/login'); // Redirect on auth error
       } else if (e?.message) {
-          // If the error object has a message property (common for fetch errors or custom errors)
           errorMessage = e.message;
       } else if (typeof e === 'string') {
-          // If the caught error is just a string
           errorMessage = e;
       }
       setError(`Failed to place order: ${errorMessage}`);
     } finally {
-      setLoading(false);
+      // In razorpay pathway, loading is set to false in rzp callback or popup handler
+      if (paymentMethod !== 'razorpay') {
+        setLoading(false);
+      }
       console.log("handlePlaceOrder: Process finished."); // Log end
     }
   };
@@ -286,18 +395,31 @@ const BuyNowCheckout = () => {
                 </div>
 
                 {/* --- Payment Method --- */}
-                 {/* This section needs real integration (e.g., Stripe Elements) */}
                 <div className="mb-6">
                      <p className="font-medium text-gray-800 mb-2 text-sm">Payment Method</p>
                      <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <label className="flex items-center cursor-pointer">
-                        <input type="radio" name="paymentMethod" value="cod" className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500" defaultChecked readOnly/>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="cod"
+                          className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                          checked={paymentMethod === 'cod'}
+                          onChange={() => setPaymentMethod('cod')}
+                        />
                         <span className="ml-2 text-sm text-gray-700">Cash on Delivery (COD)</span>
                         </label>
-                        {/* Add other methods here, e.g., Stripe */}
-                        <label className="flex items-center cursor-not-allowed opacity-50">
-                        <input type="radio" name="paymentMethod" value="card" className="form-radio h-4 w-4 text-purple-600 border-gray-300" disabled />
-                        <span className="ml-2 text-sm text-gray-500">Credit/Debit Card (Coming Soon)</span>
+                        
+                        <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="razorpay"
+                          className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                          checked={paymentMethod === 'razorpay'}
+                          onChange={() => setPaymentMethod('razorpay')}
+                        />
+                        <span className="ml-2 text-sm text-gray-700 font-medium text-purple-600">Pay Online via Razorpay</span>
                         </label>
                     </div>
                 </div>

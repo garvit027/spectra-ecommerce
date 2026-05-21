@@ -19,7 +19,12 @@ import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useL
 import { useAuth } from "../context/authContext"; // ✅ Import useAuth
 
 // -------- Seller Badge --------
-// Removed SellerBadge component
+const SellerBadge = () => (
+  <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-purple-200 shadow-sm animate-pulse">
+    <Shield size={10} className="fill-current" />
+    <span>VERIFIED SELLER</span>
+  </div>
+);
 
 
 
@@ -168,7 +173,7 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
             {/* Right Side Icons & User Menu */}
             <div className="flex items-center gap-2 sm:gap-4">
               {/* Location Button (Optional) */}
-               {/* <button
+               <button
                     onClick={handleGetLocation}
                     disabled={locationLoading}
                     className="hidden md:flex items-center gap-1 text-sm text-gray-600 hover:text-purple-700 p-2 rounded-md transition-colors"
@@ -177,7 +182,7 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
                     <MapPin size={16} />
                     <span className="max-w-[100px] truncate">{locationDisplay}</span>
                     {locationLoading && <Loader2 size={16} className="animate-spin ml-1"/>}
-                </button> */}
+                </button>
 
               {/* Cart Icon */}
               <Link to="/cart" className="relative p-2 text-gray-600 hover:text-purple-700 transition-colors rounded-full hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:ring-2 focus:ring-offset-1 focus:ring-purple-500" aria-label={`View Cart, ${cartCount} items`}>
@@ -203,6 +208,7 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
                          <span className="text-sm font-medium leading-none text-white">{user.name?.charAt(0).toUpperCase() || '?'}</span>
                      </span>
                     <span className="hidden sm:inline font-medium truncate max-w-[100px]" title={user.name}>{user.name}</span>
+                    {user.isSeller && <SellerBadge />}
                     <ChevronDown size={16} className={`transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -234,15 +240,33 @@ export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount 
                         </Link>
 
                         {/* Conditional Seller/Admin Links */}
-                        {user.isSeller && (
-                        <Link
-                            to="/seller/dashboard"
-                            className="w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center gap-3 hover:bg-purple-50 hover:text-purple-700 transition-colors"
-                             role="menuitem"
-                              onClick={() => setShowDropdown(false)}
-                        >
-                            <Package size={16} /> Seller Dashboard
-                        </Link>
+                        {user.isSeller ? (
+                          <Link
+                              to="/seller/dashboard"
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center gap-3 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                               role="menuitem"
+                                onClick={() => setShowDropdown(false)}
+                          >
+                              <Package size={16} /> Seller Dashboard
+                          </Link>
+                        ) : user.sellerStatus === "pending" ? (
+                          <Link
+                              to="/seller-application-status"
+                              className="w-full text-left px-4 py-2 text-sm text-amber-600 flex items-center gap-3 hover:bg-amber-50 transition-colors font-medium animate-pulse"
+                               role="menuitem"
+                                onClick={() => setShowDropdown(false)}
+                          >
+                              <Package size={16} /> Application Pending ⏳
+                          </Link>
+                        ) : (
+                          <Link
+                              to="/apply-seller"
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center gap-3 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                               role="menuitem"
+                                onClick={() => setShowDropdown(false)}
+                          >
+                              <Package size={16} /> Apply as Seller
+                          </Link>
                         )}
 
                         {user.isAdmin && (

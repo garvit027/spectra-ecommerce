@@ -59,6 +59,7 @@ const orderSchema = new mongoose.Schema(
       update_time: String,
       email_address: String,
     },
+    razorpayOrderId: { type: String, default: null },
   },
   { timestamps: true }
 );

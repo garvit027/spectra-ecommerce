@@ -13,12 +13,27 @@ const CartCheckout = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   // Initialize address state from user context
   const [shippingAddress, setShippingAddress] = useState({
     fullName: user?.name || '',
     address: user?.address || '',
     phone: user?.phone || '',
   });
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   // Extract cart items and total price from location state
   const cartItems = state?.cartItems || [];
@@ -124,7 +139,7 @@ const CartCheckout = () => {
         shipping: shippingCost,
         tax: tax,
         total: total,
-        // paymentMethod: 'COD' // Default payment method
+        paymentMethod: paymentMethod === 'razorpay' ? 'Razorpay' : 'COD'
       };
 
       console.log("CartCheckout - handlePlaceOrder: Sending POST /api/orders. Body:", JSON.stringify(orderBody, null, 2));
@@ -134,11 +149,108 @@ const CartCheckout = () => {
       console.log("CartCheckout - handlePlaceOrder: API call successful. Response:", newOrder);
 
       if (newOrder && newOrder._id) {
-          console.log(`CartCheckout - handlePlaceOrder: Order created with ID: ${newOrder._id}. Clearing cart and navigating.`);
-          // Clear the cart after successful order placement
-          cartDispatch({ type: 'CLEAR_CART' });
-          // Redirect to confirmation page
-          navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+          if (paymentMethod === 'razorpay') {
+            if (newOrder.razorpayOrderId && newOrder.razorpayOrderId.startsWith("mock_rzp_")) {
+              // Sandbox simulation mode
+              setTimeout(async () => {
+                const confirmPayment = window.confirm(
+                  "✨ [Razorpay Sandbox Mode] ✨\n\nNo active API keys found. Would you like to simulate a successful payment for this order?"
+                );
+                if (confirmPayment) {
+                  try {
+                    setLoading(true);
+                    const verificationResult = await api.post(
+                      `/api/orders/${newOrder._id}/verify-razorpay`,
+                      {
+                        razorpay_payment_id: `mock_pay_${Date.now()}`,
+                        razorpay_order_id: newOrder.razorpayOrderId,
+                        razorpay_signature: "mock_signature",
+                      },
+                      { token: user.token }
+                    );
+                    if (verificationResult && verificationResult.success) {
+                      cartDispatch({ type: 'CLEAR_CART' });
+                      navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+                    } else {
+                      setError("Mock payment verification failed.");
+                    }
+                  } catch (err) {
+                    console.error("Mock verification error:", err);
+                    setError(err.message || "Mock payment verification failed.");
+                  } finally {
+                    setLoading(false);
+                  }
+                } else {
+                  setLoading(false);
+                  setError("Payment cancelled in mock sandbox.");
+                }
+              }, 800);
+              return;
+            }
+
+            // Live Razorpay Mode
+            const scriptLoaded = await loadRazorpayScript();
+            if (!scriptLoaded) {
+              setError("Failed to load Razorpay SDK. Please check your internet connection.");
+              setLoading(false);
+              return;
+            }
+
+            const options = {
+              key: newOrder.razorpayKeyId,
+              amount: Math.round(newOrder.total * 100),
+              currency: newOrder.currency || "INR",
+              name: "Spectra Commerce",
+              description: `Order Payment for ${newOrder._id}`,
+              order_id: newOrder.razorpayOrderId,
+              handler: async function (response) {
+                try {
+                  setLoading(true);
+                  const verificationResult = await api.post(
+                    `/api/orders/${newOrder._id}/verify-razorpay`,
+                    {
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_signature: response.razorpay_signature,
+                    },
+                    { token: user.token }
+                  );
+
+                  if (verificationResult && verificationResult.success) {
+                    cartDispatch({ type: 'CLEAR_CART' });
+                    navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+                  } else {
+                    setError("Payment verification failed. Please contact support.");
+                  }
+                } catch (err) {
+                  console.error("Payment verification error:", err);
+                  setError(err.message || "Payment verification failed.");
+                } finally {
+                  setLoading(false);
+                }
+              },
+              prefill: {
+                name: trimmedFullName,
+                contact: trimmedPhone,
+                email: user.email,
+              },
+              theme: {
+                color: "#7c3aed",
+              },
+              modal: {
+                ondismiss: function () {
+                  setLoading(false);
+                }
+              }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+          } else {
+            // COD path
+            cartDispatch({ type: 'CLEAR_CART' });
+            navigate(`/order-confirmation?orderId=${newOrder._id}`, { replace: true });
+          }
       } else {
           console.error("CartCheckout - handlePlaceOrder: API response missing expected '_id'. Response:", newOrder);
           setError("Order placed, but failed to get confirmation ID. Please check your order history.");
@@ -157,7 +269,9 @@ const CartCheckout = () => {
       }
       setError(`Failed to place order: ${errorMessage}`);
     } finally {
-      setLoading(false);
+      if (paymentMethod !== 'razorpay') {
+        setLoading(false);
+      }
       console.log("CartCheckout - handlePlaceOrder: Process finished.");
     }
   };
@@ -262,8 +376,29 @@ const CartCheckout = () => {
                 <div className="mb-6">
                      <p className="font-medium text-gray-800 mb-2 text-sm">Payment Method</p>
                      <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <label className="flex items-center cursor-pointer"><input type="radio" name="paymentMethod" value="cod" className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500" defaultChecked readOnly/><span className="ml-2 text-sm text-gray-700">Cash on Delivery (COD)</span></label>
-                        <label className="flex items-center cursor-not-allowed opacity-50"><input type="radio" name="paymentMethod" value="card" className="form-radio h-4 w-4 text-purple-600 border-gray-300" disabled /><span className="ml-2 text-sm text-gray-500">Card (Coming Soon)</span></label>
+                        <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="cod"
+                          className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                          checked={paymentMethod === 'cod'}
+                          onChange={() => setPaymentMethod('cod')}
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Cash on Delivery (COD)</span>
+                        </label>
+                        
+                        <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="razorpay"
+                          className="form-radio h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                          checked={paymentMethod === 'razorpay'}
+                          onChange={() => setPaymentMethod('razorpay')}
+                        />
+                        <span className="ml-2 text-sm text-gray-700 font-medium text-purple-600">Pay Online via Razorpay</span>
+                        </label>
                     </div>
                 </div>
                 {/* Action Buttons */}

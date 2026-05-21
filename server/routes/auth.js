@@ -1,7 +1,8 @@
 import express from "express";
-import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import transporter from "../utils/email.js";
+import { getEmailTemplate } from "../utils/emailTemplate.js";
 
 const router = express.Router();
 const otpStore = {}; // { email: { otp, expires } }
@@ -20,16 +21,17 @@ router.post("/send-otp", async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000 };
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    });
+    const content = `
+      <p>We received a request to verify your email address. Your OTP code is below:</p>
+      <div class="otp-box">${otp}</div>
+      <p>This code will expire in 5 minutes. If you did not request this, please ignore this email.</p>
+    `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"Spectra Commerce" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Your OTP Code",
-      text: `Your OTP is: ${otp}. It will expire in 5 minutes.`,
+      html: getEmailTemplate("Verify Your Email", content),
     });
 
     const existingUser = await User.findOne({ email });

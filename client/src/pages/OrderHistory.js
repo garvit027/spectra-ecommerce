@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import { api } from "../api/client";
 import { Loader2, AlertCircle, ListOrdered, Package, ArrowLeft } from 'lucide-react';
+import OrderTimeline from '../components/OrderTimeline';
 
 // New component dedicated to showing order history
 function OrderHistoryPage() {
@@ -139,6 +140,8 @@ function OrderHistoryPage() {
                                 Payment: {order.paymentStatus}
                             </p>
                         </div>
+
+                        <OrderTimeline status={order.status} />
 
                         {/* Simplified Item Display */}
                         {order.items?.slice(0, 1).map((item, index) => ( // Show only first item preview

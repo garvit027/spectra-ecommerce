@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema(
       default: "none",
     },
     sellerApprovalToken: { type: String, default: null },
+    sellerRejectionReason: { type: String, default: "" },
+
+    // Holiday/Vacation Mode
+    onVacation: { type: Boolean, default: false },
 
     // Optional business info
     businessInfo: {

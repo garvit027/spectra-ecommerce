@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"; // Removed useMemo
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Star, StarHalf, Heart, Share2, ShoppingCart, Plus, Minus,
   Truck, Shield, RotateCcw, CheckCircle, ChevronRight, ZoomIn, X, Zap, ThumbsUp, Flag
@@ -7,6 +7,7 @@ import {
 import { useCart } from "../context/CartContext";
 import { api, API_URL } from "../api/client"; // Removed getToken
 import { useAuth } from "../context/authContext";
+import AIReviewAnalysis from "../components/AIReviewAnalysis";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -316,6 +317,13 @@ const ProductDetail = () => {
    }
 
   // --- Render component ---
+  const SellerBadge = () => (
+    <div className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-[10px] font-bold border border-purple-200 shadow-sm ml-3">
+      <Shield size={12} className="fill-current" />
+      <span>VERIFIED SELLER</span>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-purple-50 to-purple-100 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -402,7 +410,19 @@ const ProductDetail = () => {
                 </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">{product.name}</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 flex items-center">
+                {product.name}
+                {product.seller?.sellerStatus === "approved" && <SellerBadge />}
+              </h1>
+              <div className="mb-4">
+                <span className="text-sm text-gray-500">Sold by </span>
+                <Link 
+                  to={`/store/${product.seller._id || product.seller}`}
+                  className="text-sm font-semibold text-purple-700 hover:text-purple-800 hover:underline transition-all"
+                >
+                  {product.seller.name || "Verified Merchant"}
+                </Link>
+              </div>
 
               {/* Rating */}
               <div className="flex items-center space-x-2 mb-4">
@@ -629,6 +649,9 @@ const ProductDetail = () => {
                     {/* Placeholder for rating distribution bars if needed */}
                 </div>
 
+                {/* Gemini AI Review Analysis */}
+                <AIReviewAnalysis productId={product._id} numReviews={product.numReviews || 0} />
+
                 {/* Write Review Form */}
                 <div className="border rounded-xl p-4">
                   <h4 className="font-semibold text-gray-800 mb-3">Write a review</h4>
@@ -818,9 +841,15 @@ const ProductDetail = () => {
                 </div>
                 <div>
                    {/* Seller Name and Verification */}
-                   <div className="flex items-center space-x-1.5">
-                      <span className="font-semibold text-gray-900">{product.seller.name || 'Unknown Seller'}</span>
-                       {/* Add verification logic based on seller status if available */}
+                   <div className="flex items-center gap-2">
+                  <span className="text-gray-500">Sold by:</span>
+                  <Link 
+                    to={`/store/${product.seller._id || product.seller}`}
+                    className="font-semibold text-purple-700 hover:text-purple-800 hover:underline transition-all"
+                  >
+                    {product.seller.name || "Verified Merchant"}
+                  </Link>
+                   {/* Add verification logic based on seller status if available */}
                        {product.seller.isVerified && <CheckCircle size={16} className="text-green-500 flex-shrink-0" title="Verified Seller"/>}
                   </div>
                    {/* Seller Rating/Response Time (Example) */}
@@ -831,11 +860,12 @@ const ProductDetail = () => {
                    </div>
                 </div>
               </div>
-               {/* Visit Store Button */}
-               {/* Link to a dedicated seller store page if you have one */}
-               <button onClick={() => alert('Navigate to seller store page (if implemented)')} className="w-full sm:w-auto bg-purple-100 text-purple-700 px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+               <Link 
+                 to={`/store/${product.seller._id || product.seller}`}
+                 className="w-full sm:w-auto bg-purple-100 text-purple-700 px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 text-center"
+               >
                   Visit Store
-              </button>
+               </Link>
             </div>
           </div>
         )}

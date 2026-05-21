@@ -6,20 +6,23 @@ const cartReducer = (state, action) => {
   switch (action.type) {
     case 'ADD_TO_CART': {
       const newItem = action.payload;
+      const qtyToAdd = Number(newItem.qty) || 1;
       const existingItem = state.items.find((item) => item._id === newItem._id);
       
       const newItems = existingItem
         ? state.items.map((item) =>
             item._id === existingItem._id
-              ? { ...item, quantity: item.quantity + newItem.qty }
+              ? { ...item, quantity: (item.quantity || 0) + qtyToAdd }
               : item
           )
-        : [...state.items, { ...newItem, quantity: newItem.qty }];
+        : [...state.items, { ...newItem, quantity: qtyToAdd }];
+
+      const currentTotal = Number(state.totalCount) || 0;
 
       return {
         ...state,
         items: newItems,
-        totalCount: state.totalCount + newItem.qty,
+        totalCount: currentTotal + qtyToAdd,
       };
     }
 
