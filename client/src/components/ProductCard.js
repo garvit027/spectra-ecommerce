@@ -1,5 +1,4 @@
 import React from "react";
-import { useCart } from "../context/CartContext";
 import { Link } from "react-router-dom";
 import { CheckCircle, Star } from "lucide-react";
 
@@ -9,7 +8,6 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
  * A reusable card component to display product information.
  */
 function ProductCard({ product }) {
-  const { dispatch } = useCart();
 
   // Image URL logic (prioritize primary product image over banner)
   const imagePath = product.images?.[0] || product.bannerImages?.[0];

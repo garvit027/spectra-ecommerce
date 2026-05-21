@@ -3,11 +3,7 @@ import {
   LogOut,
   User,
   ShoppingBag,
-  Store,
-  CheckCircle,
-  Clock,
   Package,
-  X,
   MapPin,
   Shield,
   ListOrdered, // ✅ Added Order History icon
@@ -37,7 +33,7 @@ const SellerBadge = () => (
 export default function Navbar({ searchTerm, setSearchTerm, onLogout, cartCount }) {
   const navigate = useNavigate();
   const location = useLocation(); // Get location for search query persistence
-   const { user, updateUser } = useAuth(); // ✅ Get user and updateUser from context
+   const { user } = useAuth(); // ✅ Get user from context
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [userLocation, setUserLocation] = useState(null); // Full address string

@@ -8,7 +8,6 @@ import Navbar from "./components/NavBar";
 import ProductList from "./components/ProductList";
 import ProductDetail from "./pages/ProductDetail";
 import AddProduct from "./pages/AddProduct";
-import AdminPanel from "./pages/AdminPanel";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminPage from "./pages/AdminPage";
 import SellerDashboard from "./pages/SellerDashboard";
