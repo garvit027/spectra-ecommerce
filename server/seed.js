@@ -101,9 +101,41 @@ const seedDB = async () => {
     });
     console.log("✅ MongoDB connected for seeding");
 
-    const seller = await User.findOne({ isSeller: true });
+    let seller = await User.findOne({ isSeller: true });
     if (!seller) {
-      console.log("⚠️ No seller found. Products will be seeded without a seller.");
+      console.log("⚠️ No seller found. Creating a default seller...");
+      seller = await User.create({
+        name: "Default Seller",
+        email: "seller@spectra.com",
+        contactNo: "1234567890",
+        age: "30",
+        isSeller: true,
+        sellerStatus: "approved",
+        businessInfo: {
+          businessName: "Spectra General Store",
+          businessType: "Retail",
+          address: "123 Tech Park, Bangalore",
+          phone: "1234567890",
+          taxId: "TAX12345",
+          description: "Premium gadgets and electronics seller",
+          approvedAt: new Date(),
+          appliedAt: new Date()
+        }
+      });
+      console.log("✅ Created default seller:", seller.email);
+    }
+
+    let admin = await User.findOne({ isAdmin: true });
+    if (!admin) {
+      console.log("⚠️ No admin found. Creating a default admin...");
+      admin = await User.create({
+        name: "System Admin",
+        email: "admin@spectra.com",
+        contactNo: "0987654321",
+        age: "35",
+        isAdmin: true
+      });
+      console.log("✅ Created default admin:", admin.email);
     }
 
     await Product.deleteMany({});
