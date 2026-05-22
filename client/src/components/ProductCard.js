@@ -32,7 +32,7 @@ function ProductCard({ product }) {
 
       {/* Link to the product details page */}
       <Link to={`/product/${product._id}`} className="flex flex-col h-full">
-        <div className="relative aspect-[4/3] overflow-hidden">
+        <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-gray-50 flex items-center justify-center">
           <img
             src={imageSrc}
             alt={product.name}
