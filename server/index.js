@@ -68,6 +68,12 @@ const connectDB = async () => {
 };
 connectDB();
 
+// --- Normalize URL Double Slashes ---
+app.use((req, res, next) => {
+  req.url = req.url.replace(/\/+/g, '/');
+  next();
+});
+
 // --- Routes ---
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
